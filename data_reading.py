@@ -11,6 +11,7 @@ JIGSAW_PATH = "data/jigsaw/train.csv"
 STORMFRONT_PATH = "data/stormfront"
 DYNABENCH_PATH = "data/dynabench/data.csv"
 SENTIMENT_PATH = "data/sentiment/train.csv"
+ICWSM18_PATH = "data/ICWSM18/all.csv"
 
 
 DataReader: Callable[[], tuple[list[str], list[str]]]
@@ -126,6 +127,30 @@ def read_sentiment_data() -> tuple[list[str], list[str]]:
         for row in reader:
             document = row["tweet"]
             label = "OFF" if row["label"] == "1" else "NOT"
+            documents.append(document)
+            labels.append(label)
+
+    return documents, labels
+
+
+def read_icwsm18_data() -> tuple[list[str], list[str]]:
+    """Reads ICWSM18 data and returns a list of documents and a list of labels.
+
+    Reads all comments from the ICWSM18 dataset, converted to CSV from XLSX.
+    Documents are extracted from the 'message' column. Labels are assigned based
+    on the value of the 'Class' column ("OFF" if "Hateful", otherwise "NOT").
+
+    Dataset can be found at:
+    https://www.dropbox.com/s/21wtzy9arc5skr8/ICWSM18%20-%20SALMINEN%20ET%20AL.xlsx?dl=0.
+    """
+
+    documents, labels = [], []
+
+    with open(ICWSM18_PATH, encoding="UTF-8") as icwsm18_f:
+        reader = csv.DictReader(icwsm18_f, delimiter=";")
+        for row in reader:
+            document = row["message"].strip()
+            label = "OFF" if row["Class"] == "Hateful" else "NOT"
             documents.append(document)
             labels.append(label)
 
