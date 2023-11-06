@@ -13,10 +13,6 @@ Example usage:
 
 import json
 import argparse
-<<<<<<< HEAD
-=======
-import pickle
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
 import random as py_random
 
 import numpy as np
@@ -42,7 +38,6 @@ def create_arg_parser() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser()
 
-<<<<<<< HEAD
     parser.add_argument("-i", "--train_file", default="data/train.tsv", type=str,
                         help="Input file to learn from (default train_clean.txt)")
     parser.add_argument("-d", "--dev_file", type=str, default="data/dev.tsv",
@@ -52,18 +47,6 @@ def create_arg_parser() -> argparse.Namespace:
     parser.add_argument("-e", "--embeddings", default="glove_embeddings/glove_50d.json", type=str,
                         help="Embedding file we are using (default glove_reviews.json)")
     args = parser.parse_args() 
-=======
-    parser.add_argument("-i", "--train_file", default="data/train_clean.tsv", type=str,
-                        help="Input file to learn from (default train_clean.txt)")
-    parser.add_argument("-d", "--dev_file", type=str, default="data/dev_clean.tsv",
-                        help="Separate dev set to read in (default dev.txt)")
-    parser.add_argument("-t", "--test_file", type=str,
-                        help="If added, use trained model to predict on test set")
-    parser.add_argument("-e", "--embeddings", default="glove_reviews.json", type=str,
-                        help="Embedding file we are using (default glove_reviews.json)")
-
-    args = parser.parse_args()
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
 
     return args
 
@@ -74,34 +57,20 @@ def read_corpus(corpus_file: str) -> tuple[list[str], list[str]]:
     documents, labels = [], []
 
     with open(corpus_file, encoding="utf-8") as f:
-<<<<<<< HEAD
         lines = f.readlines()
         for line in lines:
             tokens = line.split()
-=======
-        for line in f:
-            tokens = line.split()
-
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
             label = tokens[-1]
             tweet = ' '.join(tokens[:-1])
             documents.append(tweet)
             labels.append(label)
-<<<<<<< HEAD
-=======
-
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
     return documents, labels
 
 
 def read_embeddings(embeddings_file: str):
     """Reads in word embeddings from file and save as numpy array."""
 
-<<<<<<< HEAD
     embeddings = json.load(open(embeddings_file, 'r', encoding='utf-8'))
-=======
-    embeddings = json.load(open(embeddings_file, 'r'))
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
     return {word: np.array(embeddings[word]) for word in embeddings}
 
 
@@ -126,11 +95,8 @@ def get_emb_matrix(voc, emb):
 def create_model(Y_train: list[str], emb_matrix) -> Sequential:
     """Creates the bidirectional LSTM model."""
 
-<<<<<<< HEAD
     args = create_arg_parser()
 
-=======
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
     # Hyperparameters
     HIDDEN_UNITS = 64
     LEARNING_RATE = 0.01
@@ -148,31 +114,17 @@ def create_model(Y_train: list[str], emb_matrix) -> Sequential:
     print(f"Num labels: {num_labels}")  # For debugging
 
     model = Sequential()
-<<<<<<< HEAD
 
     model.add(
         Embedding(num_tokens, embedding_dim, embeddings_initializer=Constant(emb_matrix), trainable=False)        )
 
     model.add(
         LSTM(units=HIDDEN_UNITS, return_sequences=False, recurrent_dropout=0.5))
-=======
-    model.add(
-        Embedding(num_tokens, embedding_dim, embeddings_initializer=Constant(emb_matrix), trainable=False)
-    )
-
-    model.add(
-        LSTM(units=HIDDEN_UNITS, return_sequences=False, recurrent_dropout=0.5)
-    )
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
 
     model.add(Dropout(0.8))
 
     model.add(Dense(input_dim=10, units=1, activation='sigmoid'))
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
     # TODO: Implement with different loss metric
     model.compile(loss=LOSS_FUNCTION, optimizer=OPTIM, metrics=[tf.keras.metrics.Recall(
     thresholds=None, top_k=None, class_id=None, name=None, dtype=None
@@ -216,7 +168,6 @@ def test_set_predict(model: Sequential, X_test: list[str], Y_test: list[str], id
 
     Y_pred = [custom_argmax(value) for value in model.predict(X_test)]
 
-<<<<<<< HEAD
     formatted_acc = accuracy_score(Y_test, Y_pred)
     print(f"Accuracy on own {ident} set: {formatted_acc}")
 
@@ -231,27 +182,6 @@ def test_set_predict(model: Sequential, X_test: list[str], Y_test: list[str], id
     weighted_f1 = round(f1_score(Y_test, Y_pred, average='weighted'), 3)
 
     print(f"Weighted-average on own {ident} set (prec-rec-f1): {weighted_prec} {weighted_rec} {weighted_f1}")
-=======
-
-    formatted_acc = accuracy_score(Y_test, Y_pred)
-    print(f"Accuracy on own {ident} set: {formatted_acc}")
-
-    formatted_prec = round(precision_score(Y_test, Y_pred, average='macro'), 3)
-    print(f"Precision on own {ident} set: {formatted_prec}")
-
-    formatted_rec = round(recall_score(Y_test, Y_pred, average='macro'), 3)
-    print(f"Recall on own {ident} set: {formatted_rec}")
-
-    formatted_f1 = round(f1_score(Y_test, Y_pred, average='macro'), 3)
-    print(f"F1 on own {ident} set: {formatted_f1}")
-
-    if ident == "test":
-        conf_matrix = confusion_matrix(Y_test, Y_pred)
-        print('Confusion Matrix:')
-        print(conf_matrix)
-        with open('confusion_matrix.pkl', 'wb') as file:
-            pickle.dump(conf_matrix, file)
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
 
 
 def main() -> None:
@@ -292,13 +222,9 @@ def main() -> None:
     # Do predictions on specified test set
     if args.test_file:
         # Read in test set and vectorize
-<<<<<<< HEAD
 
         X_test, Y_test = read_corpus(args.test_file)
 
-=======
-        X_test, Y_test = read_corpus(args.test_file)
->>>>>>> 0734271aef04ba8d009d5cca045cd84820807064
         Y_test_bin = encoder.fit_transform(Y_test)
         X_test_vect = vectorizer(np.array([[s] for s in X_test])).numpy()
         # Finally do the predictions
