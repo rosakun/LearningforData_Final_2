@@ -10,6 +10,7 @@ import datasets
 JIGSAW_PATH = "data/jigsaw/train.csv"
 STORMFRONT_PATH = "data/stormfront"
 DYNABENCH_PATH = "data/dynabench/data.csv"
+SENTIMENT_PATH = "data/sentiment/train.csv"
 
 
 DataReader: Callable[[], tuple[list[str], list[str]]]
@@ -101,6 +102,30 @@ def read_dynabench_data() -> tuple[list[str], list[str]]:
         for row in reader:
             document = row["text"]
             label = "OFF" if row["label"] == "hate" else "NOT"
+            documents.append(document)
+            labels.append(label)
+
+    return documents, labels
+
+
+def read_sentiment_data() -> tuple[list[str], list[str]]:
+    """Reads Sentiment data and returns a list of documents and a list of labels.
+
+    Reads Twitter Sentiment Analysis dataset. Extracts 'tweet' values as documents
+    and converts 'label' values to "OFF" if they are 1 (i.e. racist/sexist),
+    otherwise "NOT".
+
+    Dataset can be found at:
+    https://www.kaggle.com/datasets/arkhoshghalb/twitter-sentiment-analysis-hatred-speech.
+    """
+
+    documents, labels = [], []
+
+    with open(SENTIMENT_PATH, encoding="UTF-8") as sentiment_f:
+        reader = csv.DictReader(sentiment_f)
+        for row in reader:
+            document = row["tweet"]
+            label = "OFF" if row["label"] == "1" else "NOT"
             documents.append(document)
             labels.append(label)
 
