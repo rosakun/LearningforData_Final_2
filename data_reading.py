@@ -11,13 +11,14 @@ JIGSAW_PATH = "data/jigsaw/train.csv"
 STORMFRONT_PATH = "data/stormfront"
 DYNABENCH_PATH = "data/dynabench/data.csv"
 SENTIMENT_PATH = "data/sentiment/train.csv"
-ICWSM18_PATH = "data/ICWSM18/all.csv"
+ICWSM18_PATH = "data/ICWSM18/all.csv"  # NOT USED
 
 
-DataReader: Callable[[], tuple[list[str], list[str]]]
+Dataset: tuple[list[str], list[str]]  # List of documents and list of labels
+DataReader: Callable[[], Dataset]
 
 
-def read_jigsaw_data() -> tuple[list[str], list[str]]:
+def read_jigsaw_data() -> Dataset:
     """Reads Jigsaw data and returns a list of documents and a list of labels.
 
     Reads the Jigsaw Unintended Bias in Toxicity Classification dataset.
@@ -41,7 +42,7 @@ def read_jigsaw_data() -> tuple[list[str], list[str]]:
     return documents, labels
 
 
-def read_stormfront_data() -> tuple[list[str], list[str]]:
+def read_stormfront_data() -> Dataset:
     """Reads Stormfront data and returns a list of documents and a list of labels.
 
     Reads the Stormfront Hate Speech Corpus dataset. Label is assigned based on
@@ -67,7 +68,7 @@ def read_stormfront_data() -> tuple[list[str], list[str]]:
     return documents, labels
 
 
-def read_berkeley_data() -> tuple[list[str], list[str]]:
+def read_berkeley_data() -> Dataset:
     """Reads Berkeley data and returns a list of documents and a list of labels.
 
     Reads the Berkeley Hate Speech dataset. Extracts text values as documents
@@ -77,16 +78,16 @@ def read_berkeley_data() -> tuple[list[str], list[str]]:
     https://huggingface.co/datasets/ucberkeley-dlab/measuring-hate-speech.
     """
 
-    dataset = datasets.load_dataset('ucberkeley-dlab/measuring-hate-speech', 'binary')
+    dataset = datasets.load_dataset("ucberkeley-dlab/measuring-hate-speech", "binary")
     df = dataset["train"].to_pandas()
     documents = df["text"].tolist()
     scores = df["hate_speech_score"].tolist()
-    labels = ["OFF" if score >= 0.5 else "NOT" for score in scores]
+    labels = ["OFF" if score > 0.5 else "NOT" for score in scores]
 
     return documents, labels
 
 
-def read_dynabench_data() -> tuple[list[str], list[str]]:
+def read_dynabench_data() -> Dataset:
     """Reads Dynabench data and returns a list of documents and a list of labels.
 
     Reads the Dynamically Generated Hate Speech Dataset. Extracts text values as
@@ -109,7 +110,7 @@ def read_dynabench_data() -> tuple[list[str], list[str]]:
     return documents, labels
 
 
-def read_sentiment_data() -> tuple[list[str], list[str]]:
+def read_sentiment_data() -> Dataset:
     """Reads Sentiment data and returns a list of documents and a list of labels.
 
     Reads Twitter Sentiment Analysis dataset. Extracts 'tweet' values as documents
@@ -133,7 +134,8 @@ def read_sentiment_data() -> tuple[list[str], list[str]]:
     return documents, labels
 
 
-def read_icwsm18_data() -> tuple[list[str], list[str]]:
+# NOT USED
+def read_icwsm18_data() -> Dataset:
     """Reads ICWSM18 data and returns a list of documents and a list of labels.
 
     Reads all comments from the ICWSM18 dataset, converted to CSV from XLSX.
@@ -157,10 +159,11 @@ def read_icwsm18_data() -> tuple[list[str], list[str]]:
     return documents, labels
 
 
-def stats(dataset: tuple[list[str], list[str]]) -> dict:
+def stats(dataset: Dataset) -> dict:
     """Calculates the balance between OFF and NOT labels in a dataset."""
 
     stats = {
+        "total": len(dataset[1]),
         "total_off": dataset[1].count("OFF"),
         "total_not": dataset[1].count("NOT"),
         "fract_off": dataset[1].count("OFF") / len(dataset[1])
@@ -177,8 +180,7 @@ def main() -> None:
         read_stormfront_data(),
         read_berkeley_data(),
         read_dynabench_data(),
-        read_sentiment_data(),
-        read_icwsm18_data()
+        read_sentiment_data()
     ]
 
     for dataset in datasets:
