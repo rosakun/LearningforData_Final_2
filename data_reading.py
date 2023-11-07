@@ -1,4 +1,15 @@
-"""Module for reading and preprocessing data."""
+"""Module reading and standardizing datasets.
+
+This module contains functions for reading dataset files into a unified data
+structure. The data structure is a tuple of two lists: the first list contains
+the documents and the second list contains the labels.
+
+The datasets are standardized to correspond to the OLID labeling scheme, where
+offesinve documants are labeled "OFF" and non-offensive documents are labeled "NOT".
+
+The module also contains a function for calculating the balance between OFF and
+NOT labels in a dataset.
+"""
 
 
 import csv
