@@ -157,11 +157,32 @@ def read_icwsm18_data() -> tuple[list[str], list[str]]:
     return documents, labels
 
 
-def main():
-    """Main function for testing."""
+def stats(dataset: tuple[list[str], list[str]]) -> dict:
+    """Calculates the balance between OFF and NOT labels in a dataset."""
 
-    documents, labels = read_berkeley_data()
-    print(documents[:10], labels[:10])
+    stats = {
+        "total_off": dataset[1].count("OFF"),
+        "total_not": dataset[1].count("NOT"),
+        "fract_off": dataset[1].count("OFF") / len(dataset[1])
+    }
+
+    return stats
+
+
+def main() -> None:
+    """Main function for testing and demonstrating purposes."""
+
+    datasets = [
+        read_jigsaw_data(),
+        read_stormfront_data(),
+        read_berkeley_data(),
+        read_dynabench_data(),
+        read_sentiment_data(),
+        read_icwsm18_data()
+    ]
+
+    for dataset in datasets:
+        print(stats(dataset))
 
 
 if __name__ == "__main__":
