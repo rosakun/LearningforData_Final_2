@@ -3,7 +3,6 @@ import re
 
 
 def emoji_to_text(input_text):
-
     # Use the emoji.emojize() function to convert emojis to textual format
     text_with_emojis = emoji.demojize(input_text)
     return text_with_emojis

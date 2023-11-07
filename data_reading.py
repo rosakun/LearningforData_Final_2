@@ -1,4 +1,4 @@
-"""Module reading and standardizing datasets.
+"""Module for reading and standardizing datasets.
 
 This module contains functions for reading dataset files into a unified data
 structure. The data structure is a tuple of two lists: the first list contains
@@ -13,8 +13,11 @@ NOT labels in a dataset.
 
 
 import csv
+import re
+from collections import namedtuple
 from typing import Callable
 
+import emoji
 import datasets
 
 
@@ -25,7 +28,7 @@ SENTIMENT_PATH = "data/sentiment/train.csv"
 ICWSM18_PATH = "data/ICWSM18/all.csv"  # NOT USED
 
 
-Dataset: tuple[list[str], list[str]]  # List of documents and list of labels
+Dataset = namedtuple("Dataset", ["documents", "labels"])
 DataReader: Callable[[], Dataset]
 
 
@@ -50,7 +53,7 @@ def read_jigsaw_data() -> Dataset:
             documents.append(document)
             labels.append(label)
 
-    return documents, labels
+    return Dataset(documents, labels)
 
 
 def read_stormfront_data() -> Dataset:
@@ -76,7 +79,7 @@ def read_stormfront_data() -> Dataset:
             documents.append(document)
             labels.append(label)
 
-    return documents, labels
+    return Dataset(documents, labels)
 
 
 def read_berkeley_data() -> Dataset:
@@ -95,7 +98,7 @@ def read_berkeley_data() -> Dataset:
     scores = df["hate_speech_score"].tolist()
     labels = ["OFF" if score > 0.5 else "NOT" for score in scores]
 
-    return documents, labels
+    return Dataset(documents, labels)
 
 
 def read_dynabench_data() -> Dataset:
@@ -118,7 +121,7 @@ def read_dynabench_data() -> Dataset:
             documents.append(document)
             labels.append(label)
 
-    return documents, labels
+    return Dataset(documents, labels)
 
 
 def read_sentiment_data() -> Dataset:
@@ -137,12 +140,12 @@ def read_sentiment_data() -> Dataset:
     with open(SENTIMENT_PATH, encoding="UTF-8") as sentiment_f:
         reader = csv.DictReader(sentiment_f)
         for row in reader:
-            document = row["tweet"]
+            document = row["tweet"].strip()
             label = "OFF" if row["label"] == "1" else "NOT"
             documents.append(document)
             labels.append(label)
 
-    return documents, labels
+    return Dataset(documents, labels)
 
 
 # NOT USED
@@ -167,20 +170,41 @@ def read_icwsm18_data() -> Dataset:
             documents.append(document)
             labels.append(label)
 
-    return documents, labels
+    return Dataset(documents, labels)
 
 
 def stats(dataset: Dataset) -> dict:
     """Calculates the balance between OFF and NOT labels in a dataset."""
 
     stats = {
-        "total": len(dataset[1]),
-        "total_off": dataset[1].count("OFF"),
-        "total_not": dataset[1].count("NOT"),
-        "fract_off": dataset[1].count("OFF") / len(dataset[1])
+        "total": len(dataset.labels),
+        "total_off": dataset.labels.count("OFF"),
+        "total_not": dataset.labels.count("NOT"),
+        "fract_off": dataset.labels.count("OFF") / len(dataset.labels)
     }
 
     return stats
+
+
+def preprocess(dataset: Dataset, demojize: bool = True, trunc_user: bool = True,
+               replace_url: bool = True, lowercase: bool = True) -> None:
+    """Performs various preprocessing steps on a dataset.
+
+    Performs the following preprocessing steps on a dataset:
+    - Convert emojis to text format
+    - Replace occurences of '@USER' occuring over 3 times in a row with @USER @USER @USER
+    - Remove occurences of 'URL'
+    - Convert text to lowercase
+
+    Steps can be turned on or off by setting the corresponding boolean argument.
+    """
+
+    for i, doc in enumerate(dataset.documents):
+        if demojize: doc = emoji.demojize(doc)
+        if trunc_user: doc = re.sub(r"(@USER\s+){2,}", "@USER @USER ", doc)
+        if replace_url: doc = doc.replace("URL", "")
+        if lowercase: doc = doc.casefold()
+        dataset.documents[i] = doc
 
 
 def main() -> None:
@@ -196,6 +220,7 @@ def main() -> None:
 
     for dataset in datasets:
         print(stats(dataset))
+        preprocess(dataset)
 
 
 if __name__ == "__main__":
