@@ -1,12 +1,20 @@
-"""Module for reading and standardizing datasets.
+"""Module for handling datasets.
 
 This module contains functions for reading dataset files into a unified data
-structure. The data structure is a tuple of two lists: the first list contains
-the documents and the second list contains the labels.
+structure. The data structure is a nametuple with two lists: the first list
+contains the documents and the second list contains the labels.
 
 The datasets are standardized to correspond to the OLID labeling scheme, where
-offesinve documants are labeled "OFF" and non-offensive documents are labeled "NOT".
+offesinve documents are labeled "OFF" and non-offensive documents are labeled "NOT".
+Additionally, various preprocessing steps are performed on the datasets, such as
+converting emojis to text format, replacing occurences of '@USER' occuring over
+3 times in a row with @USER @USER @USER, removing occurences of 'URL', and
+converting text to lowercase.
 
+The module provides a function for merging a list of datasets into a single
+dataset.
+
+The module contains a function for splitting a dataset into train and dev portions.
 The module also contains a function for calculating the balance between OFF and
 NOT labels in a dataset.
 """
@@ -21,10 +29,10 @@ import emoji
 import datasets
 
 
-JIGSAW_PATH = "data/jigsaw/train.csv"
+JIGSAW_PATH = "data/jigsaw/raw.csv"
 STORMFRONT_PATH = "data/stormfront"
-DYNABENCH_PATH = "data/dynabench/data.csv"
-SENTIMENT_PATH = "data/sentiment/train.csv"
+DYNABENCH_PATH = "data/dynabench/raw.csv"
+SENTIMENT_PATH = "data/sentiment/raw.csv"
 ICWSM18_PATH = "data/ICWSM18/all.csv"  # NOT USED
 
 
@@ -207,20 +215,77 @@ def preprocess(dataset: Dataset, demojize: bool = True, trunc_user: bool = True,
         dataset.documents[i] = doc
 
 
+def merge(datasets: list[Dataset]) -> Dataset:
+    """Merges a list of datasets into a single dataset."""
+
+    documents, labels = [], []
+
+    for dataset in datasets:
+        documents.extend(dataset.documents)
+        labels.extend(dataset.labels)
+
+    return Dataset(documents, labels)
+
+
+def train_dev_split(dataset: Dataset, ratio: float = 0.8) -> dict[str, Dataset]:
+    """Splits a dataset into train and dev portions based on a ratio."""
+
+    split_idx = int(len(dataset.documents) * ratio)
+
+    split = {
+        "train": Dataset(dataset.documents[:split_idx], dataset.labels[:split_idx]),
+        "dev": Dataset(dataset.documents[split_idx:], dataset.labels[split_idx:])
+    }
+
+    return split
+
+
+def to_tsv(dataset: Dataset, path: str) -> None:
+    """Writes a dataset to a TSV file.
+
+    Writes a dataset to a TSV file, where the first column contains the documents
+    and the second column contains the labels.
+    """
+
+    with open(path, "w", encoding="UTF-8") as tsv_f:
+        writer = csv.writer(tsv_f, delimiter="\t")
+        for document, label in zip(dataset.documents, dataset.labels):
+            writer.writerow([document, label])
+
+
+def pipeline(dataset: Dataset, train_path: str, dev_path: str) -> None:
+    """Runs the pipeline on a dataset and writes it to a TSV file.
+
+    Preprocesses the dataset, splits it into train and dev portions, and writes
+    the portions to corresponding TSV files.
+    """
+
+    preprocess(dataset)
+    split = train_dev_split(dataset)
+    to_tsv(split["train"], train_path)
+    to_tsv(split["dev"], dev_path)
+
+
 def main() -> None:
     """Main function for testing and demonstrating purposes."""
 
-    datasets = [
-        read_jigsaw_data(),
-        read_stormfront_data(),
-        read_berkeley_data(),
-        read_dynabench_data(),
-        read_sentiment_data()
-    ]
+    jigsaw = read_jigsaw_data()
+    pipeline(jigsaw, "data/jigsaw/train.tsv", "data/jigsaw/dev.tsv")
 
-    for dataset in datasets:
-        print(stats(dataset))
-        preprocess(dataset)
+    stormfront = read_stormfront_data()
+    pipeline(stormfront, "data/stormfront/train.tsv", "data/stormfront/dev.tsv")
+
+    berkeley = read_berkeley_data()
+    pipeline(berkeley, "data/berkeley/train.tsv", "data/berkeley/dev.tsv")
+
+    dynabench = read_dynabench_data()
+    pipeline(dynabench, "data/dynabench/train.tsv", "data/dynabench/dev.tsv")
+
+    sentiment = read_sentiment_data()
+    pipeline(sentiment, "data/sentiment/train.tsv", "data/sentiment/dev.tsv")
+
+    merged = merge([jigsaw, stormfront, berkeley, dynabench, sentiment])
+    pipeline(merged, "data/merged/train.tsv", "data/merged/dev.tsv")
 
 
 if __name__ == "__main__":

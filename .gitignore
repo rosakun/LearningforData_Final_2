@@ -1,5 +1,8 @@
 data/dynabench
+data/berkeley/
 data/jigsaw
+data/merged
+data/OLID
 data/sentiment
 data/solid
 data/stormfront
