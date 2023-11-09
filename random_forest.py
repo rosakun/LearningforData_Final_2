@@ -1,32 +1,25 @@
-import argparse
-import re
+"""Module for training a random forest classifier on the OLID dataset.
 
-# from numpy import ndarray
-import spacy
-import wandb
-import numpy as np
-import scipy.sparse as sp
-from sklearn.feature_extraction import DictVectorizer
+Example usage:
+>>> python3 random_forest.py -tf train.tsv -df dev.tsv -t test.tsv -bow
+"""
+
+
+import argparse
+
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC, LinearSVC
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_predict
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.model_selection import GridSearchCV
+
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-tf", "--train_file", default='data/train.tsv', type=str,
-                        help="Train file to learn from (default data/train.tsv)")
-    parser.add_argument("-df", "--dev_file", default='data/dev.tsv', type=str,
-                        help="Dev file to evaluate on (default data/dev.tsv)")
+    parser.add_argument("-tf", "--train_file", default='data/OLID/train_preprocessed.tsv', type=str,
+                        help="Train file to learn from (data/OLID/train_preprocessed.tsv)")
+    parser.add_argument("-df", "--dev_file", default='data/OLID/dev_preprocessed.tsv', type=str,
+                        help="Dev file to evaluate on (default data/OLID/dev_preprocessed.tsv)")
     parser.add_argument("-t", "--test_file", type=str,
                         help="If added, use trained model to predict on test set")
     parser.add_argument("-bow", "--bow", action="store_true",
@@ -62,10 +55,12 @@ def read_corpus(corpus_file: str) -> tuple[list[str], list[str]]:
 
 
 def identity(inp):
-    '''Dummy function that just returns the input'''
+    """Dummy function that just returns the input."""
     return inp
 
-def create_model():
+def create_model() -> Pipeline:
+    """Creates a pipeline with a vectorizer and a classifier."""
+
     args = create_arg_parser()
 
     # Convert the texts to vectors
@@ -79,7 +74,7 @@ def create_model():
     if args.tfidf:
         vec = TfidfVectorizer(preprocessor=identity, tokenizer=identity)
         vec_name = "TF-IDF"
-    
+
     if args.union:
         count = CountVectorizer(preprocessor=identity, tokenizer=identity)
         tf_idf = TfidfVectorizer(preprocessor=identity, tokenizer=identity)
@@ -91,7 +86,7 @@ def create_model():
         vec = CountVectorizer(preprocessor=identity, tokenizer=identity,
                                 ngram_range=(1,2), min_df=0.01)
         vec_name = "BigramCount"
-    
+
     if args.trigram:
         # applying ngram on both vectorizers
         vec = CountVectorizer(preprocessor=identity, tokenizer=identity,
@@ -113,13 +108,11 @@ def create_model():
     return classifier
 
 
-if __name__ == "__main__":
+def main():
+
     args = create_arg_parser()
-
     X_train, Y_train = read_corpus(args.train_file)
-
     classifier = create_model()
-
     pred = cross_val_predict(classifier, X_train, Y_train, cv=5)
 
     print("Validation set:")
@@ -129,15 +122,14 @@ if __name__ == "__main__":
 
     if args.test_file:
         # Read in test set and vectorize
-
         X_test, Y_test = read_corpus(args.test_file)
-
         # Finally do the predictions
         pred_test = cross_val_predict(classifier, X_test, Y_test, cv=5)
         print("Test set:")
         print(classification_report(Y_test,pred_test,digits=3))
         conf_matrix_test = confusion_matrix(Y_test,pred_test)
         print(conf_matrix_test)
-        
-    
 
+
+if __name__ == "__main__":
+    main()

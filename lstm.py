@@ -1,10 +1,6 @@
-#!/usr/bin/env python
-
-
 """Module for training and evaluating the LSTM model.
 
 Hyperparameters are to be specified in the code. Optimal values already set.
-The code also produces a confusion matrix.
 
 Example usage:
 >>> python3 lstm.py -i train.txt -d dev.txt -t test.txt
@@ -38,15 +34,15 @@ def create_arg_parser() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-i", "--train_file", default="data/train.tsv", type=str,
-                        help="Input file to learn from (default train_clean.txt)")
-    parser.add_argument("-d", "--dev_file", type=str, default="data/dev.tsv",
-                        help="Separate dev set to read in (default dev.txt)")
+    parser.add_argument("-i", "--train_file", default="data/OLID/train_preprocessed.tsv", type=str,
+                        help="Input file to learn from (default data/OLID/train_preprocessed.tsv)")
+    parser.add_argument("-d", "--dev_file", type=str, default="data/OLID/train_preprocessed.tsv",
+                        help="Separate dev set to read in (default data/OLID/train_preprocessed.tsv)")
     parser.add_argument("-t", "--test_file", type=str,
                         help="If added, use trained model to predict on test set")
     parser.add_argument("-e", "--embeddings", default="glove_embeddings/glove_50d.json", type=str,
                         help="Embedding file we are using (default glove_reviews.json)")
-    args = parser.parse_args() 
+    args = parser.parse_args()
 
     return args
 
@@ -79,9 +75,7 @@ def get_emb_matrix(voc, emb):
 
     num_tokens = len(voc) + 2
     word_index = dict(zip(voc, range(len(voc))))
-    # Bit hacky, get embedding dimension from the word "the"
     embedding_dim = len(emb["the"])
-    # Prepare embedding matrix to the correct size
     embedding_matrix = np.zeros((num_tokens, embedding_dim))
     for word, i in word_index.items():
         embedding_vector = emb.get(word)
@@ -125,10 +119,19 @@ def create_model(Y_train: list[str], emb_matrix) -> Sequential:
 
     model.add(Dense(input_dim=10, units=1, activation='sigmoid'))
 
-    # TODO: Implement with different loss metric
-    model.compile(loss=LOSS_FUNCTION, optimizer=OPTIM, metrics=[tf.keras.metrics.Recall(
-    thresholds=None, top_k=None, class_id=None, name=None, dtype=None
-)])
+    model.compile(
+        loss=LOSS_FUNCTION,
+        optimizer=OPTIM,
+        metrics=[
+            tf.keras.metrics.Recall(
+                thresholds=None,
+                top_k=None,
+                class_id=None,
+                name=None,
+                dtype=None
+            )
+        ]
+    )
 
     return model
 
@@ -156,11 +159,8 @@ def train_model(model: Sequential,
 
     return model
 
-def custom_argmax(value,threshold=0.5):
-    if value >= threshold:
-        return 1
-    else:
-        return 0
+def custom_argmax(value, threshold=0.5):
+    return 1 if value >= threshold else 0
 
 
 def test_set_predict(model: Sequential, X_test: list[str], Y_test: list[str], ident: str) -> None:
@@ -233,4 +233,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-  

@@ -11,16 +11,14 @@ converting emojis to text format, replacing occurences of '@USER' occuring over
 3 times in a row with @USER @USER @USER, removing occurences of 'URL', and
 converting text to lowercase.
 
-The module provides a function for merging a list of datasets into a single
-dataset.
-
-The module contains a function for splitting a dataset into train and dev portions.
-The module also contains a function for calculating the balance between OFF and
-NOT labels in a dataset.
+The module provides various helper functions for merging a list of datasets
+into a single dataset, shuffling a dataset, splitting a dataset into train and
+dev portions, calculating the balance between OFF and NOT labels in a dataset.
 """
 
 
 import csv
+import random
 import re
 from collections import namedtuple
 from typing import Callable
@@ -29,65 +27,45 @@ import emoji
 import datasets
 
 
-JIGSAW_PATH = "data/jigsaw/raw.csv"
-STORMFRONT_PATH = "data/stormfront"
+OLID_PATH = "data/OLID"
 DYNABENCH_PATH = "data/dynabench/raw.csv"
 SENTIMENT_PATH = "data/sentiment/raw.csv"
-ICWSM18_PATH = "data/ICWSM18/all.csv"  # NOT USED
 
 
 Dataset = namedtuple("Dataset", ["documents", "labels"])
-DataReader: Callable[[], Dataset]
+DataReader = Callable[[], Dataset]
 
 
-def read_jigsaw_data() -> Dataset:
-    """Reads Jigsaw data and returns a list of documents and a list of labels.
+def read_olid_data() -> dict[str, Dataset]:
+    """Reads OLID train and dev files into a dictionary.
 
-    Reads the Jigsaw Unintended Bias in Toxicity Classification dataset.
-    Extracts comment_text values as documents and converts target values
-    greater than or equal to 0.5 to "OFF" and less than 0.5 to "NOT" as labels.
+    Reads the OLID train and dev files, compliles corresponding Dataset objects
+    and returns them in the form of a dictionary.
 
-    Dataset can be found at:
-    https://www.kaggle.com/c/jigsaw-unintended-bias-in-toxicity-classification/data.
+    Original dataset can be found at: https://scholar.harvard.edu/malmasi/olid.
     """
 
-    documents, labels = [], []
+    documents_train, labels_train = [], []
 
-    with open(JIGSAW_PATH, encoding="UTF-8") as kaggle_f:
-        reader = csv.DictReader(kaggle_f)
+    with open(f"{OLID_PATH}/train_preprocessed.tsv", encoding="UTF-8") as olid_train:
+        reader = csv.reader(olid_train, delimiter="\t")
         for row in reader:
-            document = row["comment_text"]
-            label = "OFF" if float(row["target"]) >= 0.5 else "NOT"
-            documents.append(document)
-            labels.append(label)
+            documents_train.append(row[0])
+            labels_train.append(row[1])
 
-    return Dataset(documents, labels)
+        train = Dataset(documents_train, labels_train)
 
+    documents_dev, labels_dev = [], []
 
-def read_stormfront_data() -> Dataset:
-    """Reads Stormfront data and returns a list of documents and a list of labels.
-
-    Reads the Stormfront Hate Speech Corpus dataset. Label is assigned based on
-    the value of the label column in annotations_metadata.csv. If the value is
-    "hate", the label is "OFF", otherwise it is "NOT". Comment text is extracted
-    from the .txt file correspinding to file_id value.
-
-    Dataset can be found at: https://huggingface.co/datasets/hate_speech18.
-    """
-
-    documents, labels = [], []
-
-    with open(f"{STORMFRONT_PATH}/annotations_metadata.csv", encoding="UTF-8") as stormfront_f:
-        reader = csv.DictReader(stormfront_f)
+    with open(f"{OLID_PATH}/dev_preprocessed.tsv", encoding="UTF-8") as olid_dev:
+        reader = csv.reader(olid_dev, delimiter="\t")
         for row in reader:
-            label = "OFF" if row["label"] == "hate" else "NOT"
-            doc_path = f"{STORMFRONT_PATH}/texts/{row['file_id']}.txt"
-            with open(doc_path, encoding="UTF-8") as doc_f:
-                document = doc_f.read().strip()
-            documents.append(document)
-            labels.append(label)
+            documents_dev.append(row[0])
+            labels_dev.append(row[1])
 
-    return Dataset(documents, labels)
+        dev = Dataset(documents_dev, labels_dev)
+
+    return {"train": train, "dev": dev}
 
 
 def read_berkeley_data() -> Dataset:
@@ -156,31 +134,6 @@ def read_sentiment_data() -> Dataset:
     return Dataset(documents, labels)
 
 
-# NOT USED
-def read_icwsm18_data() -> Dataset:
-    """Reads ICWSM18 data and returns a list of documents and a list of labels.
-
-    Reads all comments from the ICWSM18 dataset, converted to CSV from XLSX.
-    Documents are extracted from the 'message' column. Labels are assigned based
-    on the value of the 'Class' column ("OFF" if "Hateful", otherwise "NOT").
-
-    Dataset can be found at:
-    https://www.dropbox.com/s/21wtzy9arc5skr8/ICWSM18%20-%20SALMINEN%20ET%20AL.xlsx?dl=0.
-    """
-
-    documents, labels = [], []
-
-    with open(ICWSM18_PATH, encoding="UTF-8") as icwsm18_f:
-        reader = csv.DictReader(icwsm18_f, delimiter=";")
-        for row in reader:
-            document = row["message"].strip()
-            label = "OFF" if row["Class"] == "Hateful" else "NOT"
-            documents.append(document)
-            labels.append(label)
-
-    return Dataset(documents, labels)
-
-
 def stats(dataset: Dataset) -> dict:
     """Calculates the balance between OFF and NOT labels in a dataset."""
 
@@ -227,6 +180,19 @@ def merge(datasets: list[Dataset]) -> Dataset:
     return Dataset(documents, labels)
 
 
+def shuffle(dataset: Dataset) -> Dataset:
+    """Returnes a shuffled version of a dataset."""
+
+    pairs = list(zip(dataset.documents, dataset.labels))
+    random.shuffle(pairs)
+    documents, labels = [], []
+    for document, label in pairs:
+        documents.append(document)
+        labels.append(label)
+
+    return Dataset(documents, labels)
+
+
 def train_dev_split(dataset: Dataset, ratio: float = 0.8) -> dict[str, Dataset]:
     """Splits a dataset into train and dev portions based on a ratio."""
 
@@ -240,52 +206,52 @@ def train_dev_split(dataset: Dataset, ratio: float = 0.8) -> dict[str, Dataset]:
     return split
 
 
-def to_tsv(dataset: Dataset, path: str) -> None:
-    """Writes a dataset to a TSV file.
+def to_csv(dataset: Dataset, path: str, delimiter: str = ",") -> None:
+    """Writes a dataset to a CSV file with a specified delimiter.
 
-    Writes a dataset to a TSV file, where the first column contains the documents
+    Writes a dataset to a CSV file, where the first column contains the documents
     and the second column contains the labels.
     """
 
-    with open(path, "w", encoding="UTF-8") as tsv_f:
-        writer = csv.writer(tsv_f, delimiter="\t")
+    with open(path, "w", encoding="UTF-8") as csv_f:
+        writer = csv.writer(csv_f, delimiter=delimiter)
         for document, label in zip(dataset.documents, dataset.labels):
             writer.writerow([document, label])
 
 
-def pipeline(dataset: Dataset, train_path: str, dev_path: str) -> None:
-    """Runs the pipeline on a dataset and writes it to a TSV file.
+def pipeline(dataset: Dataset, train_path: str, dev_path: str, to_preprocess=True) -> None:
+    """Runs the pipeline on a dataset and writes it to a CSV file.
 
     Preprocesses the dataset, splits it into train and dev portions, and writes
     the portions to corresponding TSV files.
     """
 
-    preprocess(dataset)
+    if to_preprocess: preprocess(dataset)
     split = train_dev_split(dataset)
-    to_tsv(split["train"], train_path)
-    to_tsv(split["dev"], dev_path)
+    print("Train:", stats(split["train"]))
+    print("Dev:", stats(split["dev"]))
+    to_csv(split["train"], train_path)
+    to_csv(split["dev"], dev_path)
 
 
 def main() -> None:
     """Main function for testing and demonstrating purposes."""
 
-    jigsaw = read_jigsaw_data()
-    pipeline(jigsaw, "data/jigsaw/train.tsv", "data/jigsaw/dev.tsv")
-
-    stormfront = read_stormfront_data()
-    pipeline(stormfront, "data/stormfront/train.tsv", "data/stormfront/dev.tsv")
+    olid = read_olid_data()
+    olid = merge(list(olid.values()))
 
     berkeley = read_berkeley_data()
-    pipeline(berkeley, "data/berkeley/train.tsv", "data/berkeley/dev.tsv")
+    pipeline(berkeley, "data/berkeley/train.csv", "data/berkeley/dev.csv")
 
     dynabench = read_dynabench_data()
-    pipeline(dynabench, "data/dynabench/train.tsv", "data/dynabench/dev.tsv")
+    pipeline(dynabench, "data/dynabench/train.csv", "data/dynabench/dev.csv")
 
     sentiment = read_sentiment_data()
-    pipeline(sentiment, "data/sentiment/train.tsv", "data/sentiment/dev.tsv")
+    pipeline(sentiment, "data/sentiment/train.csv", "data/sentiment/dev.csv")
 
-    merged = merge([jigsaw, stormfront, berkeley, dynabench, sentiment])
-    pipeline(merged, "data/merged/train.tsv", "data/merged/dev.tsv")
+    merged = merge([olid, berkeley, dynabench, sentiment])
+    merged = shuffle(merged)
+    pipeline(merged, "data/merged/train.csv", "data/merged/dev.csv", to_preprocess=False)
 
 
 if __name__ == "__main__":
